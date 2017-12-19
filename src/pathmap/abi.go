@@ -2,16 +2,32 @@ package pathmap
 
 import (
 	"fmt"
+	"middleware"
+	"net/http"
 	"strings"
 )
 
+// Global
+var gGetHeadPathMap = NewPathNode("", "")
+
+var gPostPutPathMap = NewPathNode("", "")
+
+func Handle(abi *ApiBindingInfo) {
+	
+}
+
+
 type ApiBindingInfo struct {
-	Url string	
+	Url string;
+	WarningLevel int32;
+	LogLevel int32;
+	CheckConfig int32;
+	counter *middleware.Counter;
 }
 
 func NewApiBindingInfo(url string) *ApiBindingInfo {
 	return &ApiBindingInfo{
-		url,
+		url, 0, 0, 0, middleware.NewCounter(),
 	}
 }
 
@@ -29,14 +45,10 @@ func NewPathNode(url string, pathParamName string) *PathNode {
 	}
 }
 
-// Global
-var pathMap = NewPathNode("", "")
-
-
-	
-func GetPathNode(path string) (*PathNode, map[string]string) {
+func GetPathNode(method, path string) (*PathNode, map[string]string) {
 	parts := strings.Split(strings.Trim(path, "/ "), "/")
-	currentNode := pathMap
+	currentNode := GetPathMap(method)
+	
 	pathParamMap := make(map[string]string)
 	for _, part := range parts {
 		if node, ok := currentNode.subNode[part]; ok {
@@ -63,24 +75,33 @@ func GetUrl(pathNode *PathNode, pathParamMap map[string]string) string {
 	return url
 }
 
-func GetApiBindingInfo(path string) *ApiBindingInfo {
-	pathNode, pathParamMap := GetPathNode(path)
+func GetApiBindingInfo(method, path string) *ApiBindingInfo {
+	pathNode, pathParamMap := GetPathNode(method, path)
 	if pathNode != nil {
 		url := GetUrl(pathNode, pathParamMap)
 		
-		return &ApiBindingInfo{
-			Url: url,
-		}
+		return NewApiBindingInfo(url)
 	} else {
 		return nil
 	}
 }
 
-func addRoute(path string, url string) {
+func GetPathMap(method string) *PathNode {
+	if method == http.MethodGet || method == http.MethodHead {
+		return gGetHeadPathMap
+	} else if method == http.MethodPost || method == http.MethodPut {
+		return gPostPutPathMap
+	} else {
+		return nil
+	}
+}
+
+func addRoute(method, path, url string) {
 	parts := strings.Split(strings.Trim(path, "/ "), "/")
 	
 	count := len(parts)
-	currentNode := pathMap
+	currentNode := GetPathMap(method)
+	
 	for index, part := range parts {
 		pathParam := ""
 		if strings.HasPrefix(part, "{{") && strings.HasSuffix(part, "}}") {
@@ -101,26 +122,29 @@ func addRoute(path string, url string) {
 	}
 }
 
-func printRoutes(pathMap *PathNode, level int) {
-	currentNode := pathMap
+func printRoutes(pathNode *PathNode, level int) {
+	currentNode := pathNode
 	for key, node := range currentNode.subNode {
-		fmt.Printf("%s", strings.Repeat("    ", level))
-		fmt.Printf("%s %q\n", key, node.abi.Url)
+		fmt.Printf("|_%s[%s] %s\n", strings.Repeat("____", level), key, node.abi.Url)
 		printRoutes(node, level + 1)
 	}
 }
 
-func Initialize() {
-	pathMap.abi = nil
-	pathMap.subNode = make(map[string]*PathNode)
+func Initialize() bool {
 
-	addRoute("/api/thsamples", "http://127.0.0.1:9090/api/thsamples")
 
-	addRoute("/api/thsamples/debug", "http://127.0.0.1:9090/api/thsamples/debug")
-	
-	addRoute("/api/thsample/{{id}}", "http://127.0.0.1:9090/api/thsample/{{id}}?a={{id}}")
+	LoadApiBindingInfo()
 
-	addRoute("/api/thsample/{{id}}/info", "http://127.0.0.1:9090/api/thsample/{{id}}/info")
+	addRoute(http.MethodGet, "/api/thsamples", "http://127.0.0.1:9090/api/thsamples")
+	addRoute(http.MethodGet, "/api/thsamples/debug", "http://127.0.0.1:9090/api/thsamples/debug")
+	addRoute(http.MethodGet, "/api/thsample/{{id}}", "http://127.0.0.1:9090/api/thsample/{{id}}?a={{id}}")
 
-	printRoutes(pathMap, 0)
+	addRoute(http.MethodPost, "/api/thsample/{{id}}/info", "http://127.0.0.1:9090/api/thsample/{{id}}/info")
+
+	fmt.Printf("Path nodes for GET,HEAD\n")
+	printRoutes(gGetHeadPathMap, 0)
+	fmt.Printf("Path nodes for POST,PUT\n")
+	printRoutes(gPostPutPathMap, 0)
+
+	return true
 }
