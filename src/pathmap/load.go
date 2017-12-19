@@ -2,28 +2,12 @@
 package pathmap
 
 import (
-	"fmt"
+
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
 )
 
-func LoadApiBindingInfo() bool {
-	db, err := sql.Open("mysql", "root:root@/gateway?charset=utf8")
-	if err != nil {
-		println(err)
-		return false
-	}
-	
-	stmt, err := db.Prepare(`SELECT * from gw_api_bind where status=1;`)
-	if err != nil {
-		println(err.Error())
-		return false
-	}
-	rows, err := stmt.Query()
-	if err != nil {
-		println(err)
-	}
-
+func readRows(rows *sql.Rows) []map[string]string {
 	cols, _ := rows.Columns();
     //这里表示一行所有列的值，用[]byte表示
     vals := make([][]byte, len(cols));
@@ -34,7 +18,6 @@ func LoadApiBindingInfo() bool {
         scans[k] = &vals[k];
     }
  
-    i := 0;
 	result := []map[string]string{};
 	
 	for rows.Next() {
@@ -46,12 +29,28 @@ func LoadApiBindingInfo() bool {
         for k, v := range vals {
             key := cols[k];
             //这里把[]byte数据转成string
-            row[key] = string(v);
+            row[key] = string(v)
         }
-        //放入结果集
         result = append(result, row)
-        i++;
 	}
-	fmt.Printf("%v\n", result)
-	return true
+	return result
+}
+
+func LoadApiBindingInfo() ([]map[string]string, error) {
+	db, err := sql.Open("mysql", "root:root@/gateway?charset=utf8")
+	if err != nil {
+		println(err)
+		return nil, err
+	}
+	
+	stmt, err := db.Prepare(`SELECT * from gw_api_bind where status=1;`)
+	if err != nil {
+		println(err.Error())
+		return nil, err
+	}
+	rows, err := stmt.Query()
+	if err != nil {
+		println(err)
+	}
+	return readRows(rows), nil
 }

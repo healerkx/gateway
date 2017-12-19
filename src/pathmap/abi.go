@@ -130,16 +130,32 @@ func printRoutes(pathNode *PathNode, level int) {
 	}
 }
 
+// TODO:
+func getHttpMethod(httpMethod string) string {
+	return "GET"
+}
+
+func addRoutes(apiBindings []map[string]string) {
+	for _, apiBinding := range apiBindings {
+		fmt.Printf("%+v\n", apiBinding)
+		httpMethod := getHttpMethod(apiBinding["http_method"])
+		addRoute(httpMethod, apiBinding["gateway_api"], apiBinding["service_api"])
+	}
+}
+
 func Initialize() bool {
 
+	var apiBindings []map[string]string
+	var err error
+	if apiBindings, err = LoadApiBindingInfo(); err != nil {
+		return false
+	}
 
-	LoadApiBindingInfo()
+	addRoutes(apiBindings)
 
-	addRoute(http.MethodGet, "/api/thsamples", "http://127.0.0.1:9090/api/thsamples")
-	addRoute(http.MethodGet, "/api/thsamples/debug", "http://127.0.0.1:9090/api/thsamples/debug")
-	addRoute(http.MethodGet, "/api/thsample/{{id}}", "http://127.0.0.1:9090/api/thsample/{{id}}?a={{id}}")
-
-	addRoute(http.MethodPost, "/api/thsample/{{id}}/info", "http://127.0.0.1:9090/api/thsample/{{id}}/info")
+	// For test	
+	// addRoute(http.MethodGet, "/api/thsamples", "http://127.0.0.1:9090/api/thsamples")
+	// addRoute(http.MethodGet, "/api/thsample/{{id}}", "http://127.0.0.1:9090/api/thsample/{{id}}?a={{id}}")
 
 	fmt.Printf("Path nodes for GET,HEAD\n")
 	printRoutes(gGetHeadPathMap, 0)
