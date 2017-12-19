@@ -75,12 +75,13 @@ func GetUrl(pathNode *PathNode, pathParamMap map[string]string) string {
 	return url
 }
 
-func GetApiBindingInfo(method, path string) *ApiBindingInfo {
+func GetApiBindingInfo(method, path, query string) *ApiBindingInfo {
 	pathNode, pathParamMap := GetPathNode(method, path)
 	if pathNode != nil {
 		url := GetUrl(pathNode, pathParamMap)
 		
-		return NewApiBindingInfo(url)
+		// TODO: ? how to add ?
+		return NewApiBindingInfo(url + "?" + query)
 	} else {
 		return nil
 	}

@@ -6,16 +6,57 @@ import (
 	"io/ioutil"
 	"net/http"
 	"log"
-	"strings"
+	//"strings"
 )
 
 type GatewayHandler struct {
 	
 }
 
+func (this *GatewayHandler) doGetHead(client *http.Client, req *http.Request, abi *pathmap.ApiBindingInfo) ([]byte, error) {
+	proxy, err := http.NewRequest(req.Method, abi.Url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.Do(proxy)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+	
+func (this *GatewayHandler) doPostPut(client *http.Client, req *http.Request, abi *pathmap.ApiBindingInfo) ([]byte, error) {
+	proxy, err := http.NewRequest(req.Method, abi.Url, req.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Post body
+
+	resp, err := client.Do(proxy)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+	
+
 func (this *GatewayHandler) serve(w http.ResponseWriter, req *http.Request) {
 	
-	abi := pathmap.GetApiBindingInfo(req.Method, req.URL.Path)
+	abi := pathmap.GetApiBindingInfo(req.Method, req.URL.Path, req.URL.RawQuery)
 	
 	client := &http.Client{}
 	if abi == nil {
@@ -27,23 +68,21 @@ func (this *GatewayHandler) serve(w http.ResponseWriter, req *http.Request) {
 	pathmap.Handle(abi)
 
 	fmt.Printf("[%q]", abi)
-	proxy, err := http.NewRequest("GET", abi.Url, strings.NewReader(req.URL.RawQuery))
-	if err != nil {
-		// handle error
+
+
+	if req.Method == http.MethodGet || req.Method == http.MethodHead {
+		if body, err := this.doGetHead(client, req, abi); err == nil {
+			fmt.Fprint(w, string(body))
+		}
+	} else if req.Method == http.MethodPost || req.Method == http.MethodPut {
+		if body, err := this.doPostPut(client, req, abi); err == nil {
+			fmt.Fprint(w, string(body))
+		}
+	} else {
+		fmt.Fprint(w, "")
 	}
 
-	resp, err := client.Do(proxy)
-	if err != nil {
-		
-	}
-	defer resp.Body.Close()
 	
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		
-	}
-	
-	fmt.Fprint(w, string(body))
 }
 
 func initialize(handler *GatewayHandler) *http.ServeMux {
