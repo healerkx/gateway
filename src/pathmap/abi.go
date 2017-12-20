@@ -164,25 +164,6 @@ func addRoute(method string, apiBinding map[string]string) {
 	}
 }
 
-func PrintRoutesNode(pathNode *PathNode, level int) {
-	currentNode := pathNode
-	for key, node := range currentNode.subNode {
-		if node.abi != nil {
-			fmt.Printf("|_%s[%s(%d)] %q %d\n", strings.Repeat("_", level * 4), key, node.bindId, node.abi.Url, node.abi.Status)
-		} else {
-			fmt.Printf("|_%s[%s]\n", strings.Repeat("_", level * 4), key)
-		}
-		
-		PrintRoutesNode(node, level + 1)
-	}
-}
-
-func PrintRoutes() {
-	fmt.Printf("Path nodes for GET,HEAD\n")
-	PrintRoutesNode(gGetHeadPathMap, 0)
-	fmt.Printf("Path nodes for POST,PUT\n")
-	PrintRoutesNode(gPostPutPathMap, 0)
-}
 
 var gHttpMethodMap = map[int]string {
 	1: 		http.MethodGet,
@@ -233,7 +214,7 @@ func updateRoutes(apiBindings []map[string]string) {
 			ChangeRouteStatus(method, path, AbiStatusDying)
 		}
 	}
-	PrintRoutes()
+	// PrintRoutes()
 	addRoutes(apiBindings)
 }
 
@@ -259,8 +240,6 @@ func Initialize() bool {
 	}
 
 	addRoutes(apiBindings)
-	PrintRoutes()
-	updateRoutes(apiBindings)
 	PrintRoutes()
 	// For test	
 	// addRoute(http.MethodGet, "/api/thsamples", "http://127.0.0.1:9090/api/thsamples")
