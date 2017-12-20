@@ -2,15 +2,16 @@ package pathmap
 
 import (
 	"fmt"
+	"strconv"
 	"middleware"
 	"net/http"
 	"strings"
 )
 
 // Global
-var gGetHeadPathMap = NewPathNode("", "")
+var gGetHeadPathMap = NewPathNode()
 
-var gPostPutPathMap = NewPathNode("", "")
+var gPostPutPathMap = NewPathNode()
 
 func Handle(abi *ApiBindingInfo) {
 	
@@ -32,17 +33,34 @@ func NewApiBindingInfo(url string) *ApiBindingInfo {
 }
 
 type PathNode struct {
+	bindId int32
 	subNode map[string]*PathNode
 	abi *ApiBindingInfo
 	pathParamName string
 }
 
-func NewPathNode(url string, pathParamName string) *PathNode {
+func NewUrlPathNode(url string, pathParamName string, bindId int32) *PathNode {
 	return &PathNode{
 		subNode: make(map[string]*PathNode),
 		abi: NewApiBindingInfo(url),
 		pathParamName: pathParamName,
+		bindId: bindId,
 	}
+}
+
+func NewPathNode() *PathNode {
+	return &PathNode{
+		subNode: make(map[string]*PathNode),
+		abi: nil,
+		pathParamName: "",
+		bindId: 0,
+	}
+}
+
+func (this *PathNode) Update(url string, pathParamName string, bindId int32) {
+	this.abi = NewApiBindingInfo(url)
+	this.bindId = bindId
+	this.pathParamName = pathParamName
 }
 
 func GetPathNode(method, path string) (*PathNode, map[string]string) {
@@ -67,21 +85,21 @@ func GetPathNode(method, path string) (*PathNode, map[string]string) {
 	return currentNode, pathParamMap
 }
 
-func GetUrl(pathNode *PathNode, pathParamMap map[string]string) string {
+func GetUrl(pathNode *PathNode, pathParamMap map[string]string, query string) string {
 	url := pathNode.abi.Url
 	for key, value := range pathParamMap {
 		url = strings.Replace(url, fmt.Sprintf("{{%s}}", key), value, -1)
 	}
-	return url
+	return strings.TrimRight(url, "? ") + "?" + query
 }
 
 func GetApiBindingInfo(method, path, query string) *ApiBindingInfo {
 	pathNode, pathParamMap := GetPathNode(method, path)
 	if pathNode != nil {
-		url := GetUrl(pathNode, pathParamMap)
+		url := GetUrl(pathNode, pathParamMap, query)
 		
 		// TODO: ? how to add ?
-		return NewApiBindingInfo(url + "?" + query)
+		return NewApiBindingInfo(url)
 	} else {
 		return nil
 	}
@@ -97,7 +115,10 @@ func GetPathMap(method string) *PathNode {
 	}
 }
 
-func addRoute(method, path, url string) {
+func addRoute(method string, apiBinding map[string]string) {
+	path := apiBinding["gateway_api"]
+	url := apiBinding["service_api"]
+	bindId, _ := strconv.Atoi(apiBinding["bind_id"])
 	parts := strings.Split(strings.Trim(path, "/ "), "/")
 	
 	count := len(parts)
@@ -110,13 +131,18 @@ func addRoute(method, path, url string) {
 			part = "$"
 		}
 		if node, ok := currentNode.subNode[part]; ok {
+			// Update a Non-Leaf PathNode as a Bind PathNode 
+			if index + 1 == count {
+				node.Update(url, pathParam, int32(bindId))
+			}
 			currentNode = node
 		} else {
-			param := ""
+			var newNode *PathNode
 			if index + 1 == count {
-				param = url
+				newNode = NewUrlPathNode(url, pathParam, int32(bindId))
+			} else {
+				newNode = NewPathNode()
 			}
-			newNode := NewPathNode(param, pathParam)
 			currentNode.subNode[part] = newNode
 			currentNode = newNode
 		}
@@ -126,21 +152,49 @@ func addRoute(method, path, url string) {
 func printRoutes(pathNode *PathNode, level int) {
 	currentNode := pathNode
 	for key, node := range currentNode.subNode {
-		fmt.Printf("|_%s[%s] %s\n", strings.Repeat("____", level), key, node.abi.Url)
+		if node.abi != nil {
+			fmt.Printf("|_%s[%s] (%d)%q\n", strings.Repeat("_", level * 4), key, node.bindId, node.abi.Url)
+		} else {
+			fmt.Printf("|_%s[%s]\n", strings.Repeat("_", level * 4), key)
+		}
+		
 		printRoutes(node, level + 1)
 	}
 }
 
+var gHttpMethodMap = map[int]string {
+	1: 		http.MethodGet,
+	2: 		http.MethodHead,
+	4: 		http.MethodPost,
+	8: 		http.MethodPut,
+	16: 	http.MethodPatch,
+	32: 	http.MethodDelete,
+	64: 	http.MethodConnect,
+	128: 	http.MethodOptions,
+	256: 	http.MethodTrace,
+}
+
 // TODO:
-func getHttpMethod(httpMethod string) string {
-	return "GET"
+func getHttpMethod(httpMethod string) []string {
+	httpMethods, _ := strconv.Atoi(httpMethod)
+	methods := []string{}
+	for b, m := range gHttpMethodMap {
+		if httpMethods & b == b {
+			methods = append(methods, m)
+		}
+			
+	}
+	return methods
 }
 
 func addRoutes(apiBindings []map[string]string) {
 	for _, apiBinding := range apiBindings {
 		fmt.Printf("%+v\n", apiBinding)
-		httpMethod := getHttpMethod(apiBinding["http_method"])
-		addRoute(httpMethod, apiBinding["gateway_api"], apiBinding["service_api"])
+		methods := getHttpMethod(apiBinding["http_method"])
+		for _, method := range methods {
+			addRoute(method, apiBinding)
+		}
+		
 	}
 }
 

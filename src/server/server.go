@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"log"
-	//"strings"
+	"strings"
 )
 
 type GatewayHandler struct {
@@ -18,7 +18,9 @@ func (this *GatewayHandler) doGetHead(client *http.Client, req *http.Request, ab
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("%s, [%s]\n", req.Method, abi.Url)
 
+	proxy.Header = req.Header
 	resp, err := client.Do(proxy)
 	if err != nil {
 		return nil, err
@@ -33,13 +35,18 @@ func (this *GatewayHandler) doGetHead(client *http.Client, req *http.Request, ab
 }
 	
 func (this *GatewayHandler) doPostPut(client *http.Client, req *http.Request, abi *pathmap.ApiBindingInfo) ([]byte, error) {
-	proxy, err := http.NewRequest(req.Method, abi.Url, req.Body)
+	
+	bodyBytes, _ := ioutil.ReadAll(req.Body)
+	proxy, err := http.NewRequest(req.Method, abi.Url, nil)
 	if err != nil {
 		return nil, err
 	}
-
+	
+	proxy.Body = ioutil.NopCloser(strings.NewReader(string(bodyBytes)))
+	fmt.Printf("%s [%s] [%s]\n", req.Method, abi.Url, string(bodyBytes))
 	// TODO: Post body
 
+	proxy.Header = req.Header
 	resp, err := client.Do(proxy)
 	if err != nil {
 		return nil, err
@@ -67,8 +74,7 @@ func (this *GatewayHandler) serve(w http.ResponseWriter, req *http.Request) {
 	}
 	pathmap.Handle(abi)
 
-	fmt.Printf("[%q]", abi)
-
+	
 
 	if req.Method == http.MethodGet || req.Method == http.MethodHead {
 		if body, err := this.doGetHead(client, req, abi); err == nil {
