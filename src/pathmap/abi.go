@@ -50,10 +50,12 @@ func NewApiBindingInfo(url string) *ApiBindingInfo {
 	}
 }
 
+type PathNodeMap map[string]*PathNode
+
 type PathNode struct {
-	bindId int32
-	subNode map[string]*PathNode
-	pathParamName string
+	bindId 			int32
+	pathNodeMap 	PathNodeMap
+	pathParamName 	string
 }
 
 func (this *PathNode) FindApiBindingInfo() *ApiBindingInfo {
@@ -64,7 +66,7 @@ func NewUrlPathNode(url string, pathParamName string, bindId int32) *PathNode {
 	abi := NewApiBindingInfo(url)
 	gApiBindingInfoMap[bindId] = abi
 	return &PathNode {
-		subNode: make(map[string]*PathNode),
+		pathNodeMap: make(PathNodeMap),
 		pathParamName: pathParamName,
 		bindId: bindId,
 	}
@@ -72,7 +74,7 @@ func NewUrlPathNode(url string, pathParamName string, bindId int32) *PathNode {
 
 func NewPathNode() *PathNode {
 	return &PathNode{
-		subNode: make(map[string]*PathNode),
+		pathNodeMap: make(PathNodeMap),
 		pathParamName: "",
 		bindId: 0,
 	}
@@ -90,10 +92,10 @@ func GetPathNode(method, path string) (*PathNode, map[string]string) {
 	
 	pathParamMap := make(map[string]string)
 	for _, part := range parts {
-		if node, ok := currentNode.subNode[part]; ok {
+		if node, ok := currentNode.pathNodeMap[part]; ok {
 			currentNode = node
 		} else {
-			if node, ok := currentNode.subNode["$"]; ok {
+			if node, ok := currentNode.pathNodeMap["$"]; ok {
 				if node.pathParamName != "" {
 					pathParamMap[node.pathParamName] = part
 				}
@@ -150,7 +152,7 @@ func addRoute(method string, apiBinding map[string]string) {
 			pathParam = strings.Trim(part, "{} ")
 			part = "$"
 		}
-		if node, ok := currentNode.subNode[part]; ok {
+		if node, ok := currentNode.pathNodeMap[part]; ok {
 			// Update a Non-Leaf PathNode as a Bind PathNode 
 			if index + 1 == count {
 				node.Update(url, pathParam, int32(bindId))
@@ -163,7 +165,7 @@ func addRoute(method string, apiBinding map[string]string) {
 			} else {
 				newNode = NewPathNode()
 			}
-			currentNode.subNode[part] = newNode
+			currentNode.pathNodeMap[part] = newNode
 			currentNode = newNode
 		}
 	}

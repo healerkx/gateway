@@ -7,7 +7,7 @@ import (
 
 func PrintRoutesNode(pathNode *PathNode, level int) {
 	currentNode := pathNode
-	for key, node := range currentNode.subNode {
+	for key, node := range currentNode.pathNodeMap {
 		abi := node.FindApiBindingInfo()
 		if abi != nil {
 			fmt.Printf("|_%s[%s(%d)] %q %d\n", strings.Repeat("_", level * 4), key, node.bindId, abi.Url, abi.Status)
