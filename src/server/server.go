@@ -13,8 +13,9 @@ type GatewayHandler struct {
 	
 }
 	
-func (this *GatewayHandler) makeRequest(client *http.Client, req *http.Request, abi *pathmap.ApiBindingInfo) ([]byte, error) {
-	proxy, err := http.NewRequest(req.Method, abi.Url, nil)
+func (this *GatewayHandler) makeRequest(req *http.Request, abi *pathmap.ApiBindingInfo, url string) ([]byte, error) {
+	client := &http.Client{}
+	proxy, err := http.NewRequest(req.Method, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +28,7 @@ func (this *GatewayHandler) makeRequest(client *http.Client, req *http.Request, 
 	}
 
 	proxy.Header = req.Header
-	fmt.Printf("%s [%s]\n", req.Method, abi.Url)
+	fmt.Printf("%s [%s]\n", req.Method, url)
 	resp, err := client.Do(proxy)
 	if err != nil {
 		return nil, err
@@ -41,9 +42,8 @@ func (this *GatewayHandler) makeRequest(client *http.Client, req *http.Request, 
 
 func (this *GatewayHandler) serve(w http.ResponseWriter, req *http.Request) {
 	
-	abi := pathmap.GetApiBindingInfo(req.Method, req.URL.Path, req.URL.RawQuery)
+	abi, url := pathmap.GetApiBindingInfo(req.Method, req.URL.Path, req.URL.RawQuery)
 	
-	client := &http.Client{}
 	if abi == nil {
 		if req.URL.Path == "/favicon.ico" {
 			return
@@ -52,7 +52,7 @@ func (this *GatewayHandler) serve(w http.ResponseWriter, req *http.Request) {
 	}
 	pathmap.Handle(abi)
 
-	if body, err := this.makeRequest(client, req, abi); err == nil {
+	if body, err := this.makeRequest(req, abi, url); err == nil {
 		fmt.Fprint(w, string(body))
 	} else {
 		fmt.Fprint(w, "")
@@ -73,7 +73,7 @@ func Run() {
 	handler := GatewayHandler{}
 	mux := initialize(&handler)
 
-	err := http.ListenAndServe(":8080", mux)
+	err := http.ListenAndServe(":3000", mux)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}

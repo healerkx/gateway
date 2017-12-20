@@ -8,8 +8,9 @@ import (
 func PrintRoutesNode(pathNode *PathNode, level int) {
 	currentNode := pathNode
 	for key, node := range currentNode.subNode {
-		if node.abi != nil {
-			fmt.Printf("|_%s[%s(%d)] %q %d\n", strings.Repeat("_", level * 4), key, node.bindId, node.abi.Url, node.abi.Status)
+		abi := node.FindApiBindingInfo()
+		if abi != nil {
+			fmt.Printf("|_%s[%s(%d)] %q %d\n", strings.Repeat("_", level * 4), key, node.bindId, abi.Url, abi.Status)
 		} else {
 			fmt.Printf("|_%s[%s]\n", strings.Repeat("_", level * 4), key)
 		}

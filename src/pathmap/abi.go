@@ -36,6 +36,9 @@ type ApiBindingInfo struct {
 	counter *middleware.Counter;
 }
 
+var gApiBindingInfoMap = map[int32]*ApiBindingInfo {}
+
+
 func NewApiBindingInfo(url string) *ApiBindingInfo {
 	return &ApiBindingInfo{
 		Url: url, 
@@ -50,14 +53,18 @@ func NewApiBindingInfo(url string) *ApiBindingInfo {
 type PathNode struct {
 	bindId int32
 	subNode map[string]*PathNode
-	abi *ApiBindingInfo
 	pathParamName string
 }
 
+func (this *PathNode) FindApiBindingInfo() *ApiBindingInfo {
+	return gApiBindingInfoMap[this.bindId]
+}
+
 func NewUrlPathNode(url string, pathParamName string, bindId int32) *PathNode {
-	return &PathNode{
+	abi := NewApiBindingInfo(url)
+	gApiBindingInfoMap[bindId] = abi
+	return &PathNode {
 		subNode: make(map[string]*PathNode),
-		abi: NewApiBindingInfo(url),
 		pathParamName: pathParamName,
 		bindId: bindId,
 	}
@@ -66,14 +73,13 @@ func NewUrlPathNode(url string, pathParamName string, bindId int32) *PathNode {
 func NewPathNode() *PathNode {
 	return &PathNode{
 		subNode: make(map[string]*PathNode),
-		abi: nil,
 		pathParamName: "",
 		bindId: 0,
 	}
 }
 
 func (this *PathNode) Update(url string, pathParamName string, bindId int32) {
-	this.abi = NewApiBindingInfo(url)
+	// this.abi = NewApiBindingInfo(url)
 	this.bindId = bindId
 	this.pathParamName = pathParamName
 }
@@ -100,23 +106,22 @@ func GetPathNode(method, path string) (*PathNode, map[string]string) {
 	return currentNode, pathParamMap
 }
 
-func GetUrl(pathNode *PathNode, pathParamMap map[string]string, query string) string {
-	url := pathNode.abi.Url
+func GetUrl(abi *ApiBindingInfo, pathParamMap map[string]string, query string) string {
+	url := abi.Url
 	for key, value := range pathParamMap {
 		url = strings.Replace(url, fmt.Sprintf("{{%s}}", key), value, -1)
 	}
 	return strings.TrimRight(url, "? ") + "?" + query
 }
 
-func GetApiBindingInfo(method, path, query string) *ApiBindingInfo {
+func GetApiBindingInfo(method, path, query string) (*ApiBindingInfo, string) {
 	pathNode, pathParamMap := GetPathNode(method, path)
 	if pathNode != nil {
-		url := GetUrl(pathNode, pathParamMap, query)
-		
-		// TODO: ? how to add ?
-		return NewApiBindingInfo(url)
+		abi := pathNode.FindApiBindingInfo()
+		url := GetUrl(abi, pathParamMap, query)
+		return abi, url
 	} else {
-		return nil
+		return nil, ""
 	}
 }
 
@@ -195,8 +200,9 @@ func getHttpMethod(httpMethod string) []string {
 func ChangeRouteStatus(method, path string, status int32) (int32, error) {
 	pathNode, _ := GetPathNode(method, path)
 	if pathNode != nil {
-		lastStatus := pathNode.abi.Status
-		pathNode.abi.Status = status
+		abi := pathNode.FindApiBindingInfo()
+		lastStatus := abi.Status
+		abi.Status = status
 		return lastStatus, nil
 	}
 	return AbiStatusUnknown, errors.New("Route not found")
