@@ -12,15 +12,22 @@ import (
 type GatewayHandler struct {
 	
 }
-
-func (this *GatewayHandler) doGetHead(client *http.Client, req *http.Request, abi *pathmap.ApiBindingInfo) ([]byte, error) {
+	
+func (this *GatewayHandler) makeRequest(client *http.Client, req *http.Request, abi *pathmap.ApiBindingInfo) ([]byte, error) {
 	proxy, err := http.NewRequest(req.Method, abi.Url, nil)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("%s, [%s]\n", req.Method, abi.Url)
+	
+	if req.Method == http.MethodPost || req.Method == http.MethodPut {
+		bodyBytes, _ := ioutil.ReadAll(req.Body)
+		bodyRead := ioutil.NopCloser(strings.NewReader(string(bodyBytes)))
+		defer bodyRead.Close()
+		proxy.Body = bodyRead
+	}
 
 	proxy.Header = req.Header
+	fmt.Printf("%s [%s]\n", req.Method, abi.Url)
 	resp, err := client.Do(proxy)
 	if err != nil {
 		return nil, err
@@ -28,36 +35,7 @@ func (this *GatewayHandler) doGetHead(client *http.Client, req *http.Request, ab
 	defer resp.Body.Close()
 	
 	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	return body, nil
-}
-	
-func (this *GatewayHandler) doPostPut(client *http.Client, req *http.Request, abi *pathmap.ApiBindingInfo) ([]byte, error) {
-	
-	bodyBytes, _ := ioutil.ReadAll(req.Body)
-	proxy, err := http.NewRequest(req.Method, abi.Url, nil)
-	if err != nil {
-		return nil, err
-	}
-	
-	proxy.Body = ioutil.NopCloser(strings.NewReader(string(bodyBytes)))
-	fmt.Printf("%s [%s] [%s]\n", req.Method, abi.Url, string(bodyBytes))
-	// TODO: Post body
-
-	proxy.Header = req.Header
-	resp, err := client.Do(proxy)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	return body, nil
+	return body, err
 }
 	
 
@@ -74,21 +52,11 @@ func (this *GatewayHandler) serve(w http.ResponseWriter, req *http.Request) {
 	}
 	pathmap.Handle(abi)
 
-	
-
-	if req.Method == http.MethodGet || req.Method == http.MethodHead {
-		if body, err := this.doGetHead(client, req, abi); err == nil {
-			fmt.Fprint(w, string(body))
-		}
-	} else if req.Method == http.MethodPost || req.Method == http.MethodPut {
-		if body, err := this.doPostPut(client, req, abi); err == nil {
-			fmt.Fprint(w, string(body))
-		}
+	if body, err := this.makeRequest(client, req, abi); err == nil {
+		fmt.Fprint(w, string(body))
 	} else {
 		fmt.Fprint(w, "")
-	}
-
-	
+	}	
 }
 
 func initialize(handler *GatewayHandler) *http.ServeMux {

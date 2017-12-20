@@ -1,6 +1,7 @@
 package pathmap
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"middleware"
@@ -17,18 +18,32 @@ func Handle(abi *ApiBindingInfo) {
 	
 }
 
+const (
+	AbiStatusUnknown	= 0
+	AbiStatusEnabled	= 1
+	AbiStatusDisabled	= 2
+	AbiStatusDying		= 3
+) 
+
+
 
 type ApiBindingInfo struct {
 	Url string;
 	WarningLevel int32;
 	LogLevel int32;
 	CheckConfig int32;
+	Status int32;
 	counter *middleware.Counter;
 }
 
 func NewApiBindingInfo(url string) *ApiBindingInfo {
 	return &ApiBindingInfo{
-		url, 0, 0, 0, middleware.NewCounter(),
+		Url: url, 
+		WarningLevel: 0, 
+		LogLevel: 0, 
+		CheckConfig: 0, 
+		Status: AbiStatusEnabled,
+		counter: middleware.NewCounter(),
 	}
 }
 
@@ -149,17 +164,24 @@ func addRoute(method string, apiBinding map[string]string) {
 	}
 }
 
-func printRoutes(pathNode *PathNode, level int) {
+func PrintRoutesNode(pathNode *PathNode, level int) {
 	currentNode := pathNode
 	for key, node := range currentNode.subNode {
 		if node.abi != nil {
-			fmt.Printf("|_%s[%s] (%d)%q\n", strings.Repeat("_", level * 4), key, node.bindId, node.abi.Url)
+			fmt.Printf("|_%s[%s(%d)] %q %d\n", strings.Repeat("_", level * 4), key, node.bindId, node.abi.Url, node.abi.Status)
 		} else {
 			fmt.Printf("|_%s[%s]\n", strings.Repeat("_", level * 4), key)
 		}
 		
-		printRoutes(node, level + 1)
+		PrintRoutesNode(node, level + 1)
 	}
+}
+
+func PrintRoutes() {
+	fmt.Printf("Path nodes for GET,HEAD\n")
+	PrintRoutesNode(gGetHeadPathMap, 0)
+	fmt.Printf("Path nodes for POST,PUT\n")
+	PrintRoutesNode(gPostPutPathMap, 0)
 }
 
 var gHttpMethodMap = map[int]string {
@@ -174,7 +196,7 @@ var gHttpMethodMap = map[int]string {
 	256: 	http.MethodTrace,
 }
 
-// TODO:
+// TODO: Cache?
 func getHttpMethod(httpMethod string) []string {
 	httpMethods, _ := strconv.Atoi(httpMethod)
 	methods := []string{}
@@ -182,11 +204,42 @@ func getHttpMethod(httpMethod string) []string {
 		if httpMethods & b == b {
 			methods = append(methods, m)
 		}
-			
 	}
 	return methods
 }
 
+/**
+ * Make a route forbidden or not
+ */
+func ChangeRouteStatus(method, path string, status int32) (int32, error) {
+	pathNode, _ := GetPathNode(method, path)
+	if pathNode != nil {
+		lastStatus := pathNode.abi.Status
+		pathNode.abi.Status = status
+		return lastStatus, nil
+	}
+	return AbiStatusUnknown, errors.New("Route not found")
+}
+
+/**
+ * It's for Initialize the routes table and update the routes the table
+ */
+func updateRoutes(apiBindings []map[string]string) {
+	for _, apiBinding := range apiBindings {
+		fmt.Printf("%+v\n", apiBinding)
+		methods := getHttpMethod(apiBinding["http_method"])
+		for _, method := range methods {
+			path := apiBinding["gateway_api"]
+			ChangeRouteStatus(method, path, AbiStatusDying)
+		}
+	}
+	PrintRoutes()
+	addRoutes(apiBindings)
+}
+
+/**
+ * It's for Initialize the routes table and update the routes the table
+ */
 func addRoutes(apiBindings []map[string]string) {
 	for _, apiBinding := range apiBindings {
 		fmt.Printf("%+v\n", apiBinding)
@@ -194,7 +247,6 @@ func addRoutes(apiBindings []map[string]string) {
 		for _, method := range methods {
 			addRoute(method, apiBinding)
 		}
-		
 	}
 }
 
@@ -207,15 +259,12 @@ func Initialize() bool {
 	}
 
 	addRoutes(apiBindings)
-
+	PrintRoutes()
+	updateRoutes(apiBindings)
+	PrintRoutes()
 	// For test	
 	// addRoute(http.MethodGet, "/api/thsamples", "http://127.0.0.1:9090/api/thsamples")
 	// addRoute(http.MethodGet, "/api/thsample/{{id}}", "http://127.0.0.1:9090/api/thsample/{{id}}?a={{id}}")
-
-	fmt.Printf("Path nodes for GET,HEAD\n")
-	printRoutes(gGetHeadPathMap, 0)
-	fmt.Printf("Path nodes for POST,PUT\n")
-	printRoutes(gPostPutPathMap, 0)
 
 	return true
 }
