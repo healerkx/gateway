@@ -13,11 +13,11 @@ type GatewayHandler struct {
 	
 }
 	
-func (this *GatewayHandler) makeRequest(req *http.Request, abi *pathmap.ApiBindingInfo, url string) ([]byte, error) {
+func (this *GatewayHandler) makeRequest(req *http.Request, abi *pathmap.ApiBindingInfo, url string) ([]byte, http.Header, error) {
 	client := &http.Client{}
 	proxy, err := http.NewRequest(req.Method, url, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	
 	if req.Method == http.MethodPost || req.Method == http.MethodPut {
@@ -31,12 +31,12 @@ func (this *GatewayHandler) makeRequest(req *http.Request, abi *pathmap.ApiBindi
 	fmt.Printf("%s [%s]\n", req.Method, url)
 	resp, err := client.Do(proxy)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer resp.Body.Close()
 	
 	body, err := ioutil.ReadAll(resp.Body)
-	return body, err
+	return body, resp.Header, err
 }
 	
 
@@ -52,7 +52,16 @@ func (this *GatewayHandler) serve(w http.ResponseWriter, req *http.Request) {
 	}
 	pathmap.Handle(abi)
 
-	if body, err := this.makeRequest(req, abi, url); err == nil {
+	if body, header, err := this.makeRequest(req, abi, url); err == nil {
+		headers := w.Header()
+		for key, values := range header {
+			// If values has more than 1 element.
+			for _, value := range values {
+				// ? Add or Set? 
+				headers.Add(key, value)
+			}
+		} 
+		
 		fmt.Fprint(w, string(body))
 	} else {
 		fmt.Fprint(w, "")
