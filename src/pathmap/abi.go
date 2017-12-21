@@ -9,53 +9,25 @@ import (
 	"strings"
 )
 
-// Global
-var gGetHeadPathMap = NewPathNode()
 
-var gPostPutPathMap = NewPathNode()
-
-func Handle(abi *ApiBindingInfo) {
-	
+/**
+ * Start handle the middlewares
+ */
+func (this *ApiBindingInfo) Handle(req *http.Request, url string) {
+	this.HeadMiddleware.Handle(req, url)
 }
-
-const (
-	AbiStatusUnknown	= 0
-	AbiStatusEnabled	= 1
-	AbiStatusDisabled	= 2
-	AbiStatusDying		= 3
-) 
-
-
-
-type ApiBindingInfo struct {
-	Url string;
-	WarningLevel int32;
-	LogLevel int32;
-	CheckConfig int32;
-	Status int32;
-	counter *middleware.Counter;
-}
-
-var gApiBindingInfoMap = map[int32]*ApiBindingInfo {}
-
 
 func NewApiBindingInfo(url string) *ApiBindingInfo {
+	headMiddleware := middleware.NewHeadMiddleware()
+
 	return &ApiBindingInfo{
 		Url: url, 
 		WarningLevel: 0, 
 		LogLevel: 0, 
 		CheckConfig: 0, 
 		Status: AbiStatusEnabled,
-		counter: middleware.NewCounter(),
+		HeadMiddleware: headMiddleware,
 	}
-}
-
-type PathNodeMap map[string]*PathNode
-
-type PathNode struct {
-	bindId 			int32
-	pathNodeMap 	PathNodeMap
-	pathParamName 	string
 }
 
 func (this *PathNode) FindApiBindingInfo() *ApiBindingInfo {
@@ -81,9 +53,10 @@ func NewPathNode() *PathNode {
 }
 
 func (this *PathNode) Update(url string, pathParamName string, bindId int32) {
-	// this.abi = NewApiBindingInfo(url)
 	this.bindId = bindId
 	this.pathParamName = pathParamName
+	abi := this.FindApiBindingInfo()
+	abi.Url = url
 }
 
 func GetPathNode(method, path string) (*PathNode, map[string]string) {
@@ -108,7 +81,10 @@ func GetPathNode(method, path string) (*PathNode, map[string]string) {
 	return currentNode, pathParamMap
 }
 
-func GetUrl(abi *ApiBindingInfo, pathParamMap map[string]string, query string) string {
+/**
+ * 
+ */
+func makeFinalUrl(abi *ApiBindingInfo, pathParamMap map[string]string, query string) string {
 	url := abi.Url
 	for key, value := range pathParamMap {
 		url = strings.Replace(url, fmt.Sprintf("{{%s}}", key), value, -1)
@@ -120,7 +96,7 @@ func GetApiBindingInfo(method, path, query string) (*ApiBindingInfo, string) {
 	pathNode, pathParamMap := GetPathNode(method, path)
 	if pathNode != nil {
 		abi := pathNode.FindApiBindingInfo()
-		url := GetUrl(abi, pathParamMap, query)
+		url := makeFinalUrl(abi, pathParamMap, query)
 		return abi, url
 	} else {
 		return nil, ""
@@ -171,19 +147,6 @@ func addRoute(method string, apiBinding map[string]string) {
 	}
 }
 
-
-var gHttpMethodMap = map[int]string {
-	1: 		http.MethodGet,
-	2: 		http.MethodHead,
-	4: 		http.MethodPost,
-	8: 		http.MethodPut,
-	16: 	http.MethodPatch,
-	32: 	http.MethodDelete,
-	64: 	http.MethodConnect,
-	128: 	http.MethodOptions,
-	256: 	http.MethodTrace,
-}
-
 // TODO: Cache?
 func getHttpMethod(httpMethod string) []string {
 	httpMethods, _ := strconv.Atoi(httpMethod)
@@ -215,7 +178,7 @@ func ChangeRouteStatus(method, path string, status int32) (int32, error) {
  */
 func updateRoutes(apiBindings []map[string]string) {
 	for _, apiBinding := range apiBindings {
-		fmt.Printf("%+v\n", apiBinding)
+		// fmt.Printf("%+v\n", apiBinding)
 		methods := getHttpMethod(apiBinding["http_method"])
 		for _, method := range methods {
 			path := apiBinding["gateway_api"]
@@ -231,7 +194,7 @@ func updateRoutes(apiBindings []map[string]string) {
  */
 func addRoutes(apiBindings []map[string]string) {
 	for _, apiBinding := range apiBindings {
-		fmt.Printf("%+v\n", apiBinding)
+		// fmt.Printf("%+v\n", apiBinding)
 		methods := getHttpMethod(apiBinding["http_method"])
 		for _, method := range methods {
 			addRoute(method, apiBinding)

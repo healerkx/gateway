@@ -51,7 +51,8 @@ func (this *GatewayHandler) serve(w http.ResponseWriter, req *http.Request) {
 		}
 		fmt.Printf("[%s] not found abi", req.URL)
 	}
-	pathmap.Handle(abi)
+	
+	abi.Handle(req, url)
 
 	if body, header, err := this.makeRequest(req, abi, url); err == nil {
 		headers := w.Header()

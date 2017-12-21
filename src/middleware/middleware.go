@@ -5,5 +5,22 @@ import (
 )
 
 type Middleware interface {
-	handle(req *http.Request) bool
+	Handle(req *http.Request, url string) bool
+}
+
+
+type HeadMiddleware struct {
+	counter Counter
+}
+
+func NewHeadMiddleware() *HeadMiddleware {
+	return &HeadMiddleware{
+
+	}
+}
+
+func (this *HeadMiddleware) Handle(req *http.Request, url string) bool {
+	this.counter.Handle(req, url)
+
+	return true
 }
