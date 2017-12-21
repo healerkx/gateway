@@ -206,7 +206,7 @@ func Initialize() bool {
 
 	var apiBindings []map[string]string
 	var err error
-	if apiBindings, err = LoadApiBindingInfo(); err != nil {
+	if apiBindings, err = LoadApiBindingInfo(0); err != nil {
 		return false
 	}
 

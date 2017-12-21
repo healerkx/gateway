@@ -2,7 +2,7 @@
 package pathmap
 
 import (
-	"fmt"
+	//"fmt"
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -46,7 +46,7 @@ func LoadApiBindingInfo(updateTime int32) ([]map[string]string, error) {
 		return nil, err
 	}
 	
-	stmt, err := db.Prepare("SELECT * from gw_api_bind where status=1 and update_time> ? ;")
+	stmt, err := db.Prepare("SELECT * from gw_api_bind where status=1 and update_time>= ? ;")
 	if err != nil {
 		println(err.Error())
 		return nil, err
