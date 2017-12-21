@@ -8,9 +8,9 @@ type Middleware interface {
 	Handle(req *http.Request, url string) bool
 }
 
-
 type HeadMiddleware struct {
-	counter Counter
+	logger Logger;
+	counter Counter;
 }
 
 func NewHeadMiddleware() *HeadMiddleware {

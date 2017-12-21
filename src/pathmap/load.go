@@ -2,6 +2,7 @@
 package pathmap
 
 import (
+	"fmt"
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -35,21 +36,26 @@ func readRows(rows *sql.Rows) []map[string]string {
 	return result
 }
 
-func LoadApiBindingInfo() ([]map[string]string, error) {
+/**
+ * updateTime == 0 for all
+ */
+func LoadApiBindingInfo(updateTime int32) ([]map[string]string, error) {
 	db, err := sql.Open("mysql", "root:root@/gateway?charset=utf8")
 	if err != nil {
 		println(err)
 		return nil, err
 	}
 	
-	stmt, err := db.Prepare(`SELECT * from gw_api_bind where status=1;`)
+	stmt, err := db.Prepare("SELECT * from gw_api_bind where status=1 and update_time> ? ;")
 	if err != nil {
 		println(err.Error())
 		return nil, err
 	}
-	rows, err := stmt.Query()
+	rows, err := stmt.Query(updateTime)
 	if err != nil {
 		println(err)
 	}
 	return readRows(rows), nil
 }
+
+
