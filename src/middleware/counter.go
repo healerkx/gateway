@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"net/http"
 	"time"
 )
 
@@ -19,7 +18,7 @@ func NewCounter() *Counter {
 	}
 }
 
-func (this *Counter) Handle(req *http.Request, url string) bool {
+func (this *Counter) Handle(requestHolder *RequestHolder) bool {
 	now := time.Now()
 	if now.Day() != this.lastTime.Day() {
 		this.todayCount = 0	

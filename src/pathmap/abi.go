@@ -14,7 +14,8 @@ import (
  * Start handle the middlewares
  */
 func (this *ApiBindingInfo) Handle(req *http.Request, url string) {
-	this.HeadMiddleware.Handle(req, url)
+	rh := middleware.NewRequestHolder(req, url)
+	this.HeadMiddleware.Handle(&rh)
 }
 
 func NewApiBindingInfo(url string) *ApiBindingInfo {
@@ -204,6 +205,7 @@ func addRoutes(apiBindings []map[string]string) {
 
 func Initialize() bool {
 
+	middleware.Initialize()
 	var apiBindings []map[string]string
 	var err error
 	if apiBindings, err = LoadApiBindingInfo(0); err != nil {

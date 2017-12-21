@@ -37,7 +37,7 @@ func readRows(rows *sql.Rows) []map[string]string {
 }
 
 /**
- * updateTime == 0 for all
+ * updateTime == 0 for loading all
  */
 func LoadApiBindingInfo(updateTime int32) ([]map[string]string, error) {
 	db, err := sql.Open("mysql", "root:root@/gateway?charset=utf8")
