@@ -15,13 +15,14 @@ type HeadMiddleware struct {
 
 type RequestHolder struct {
 	Request *http.Request;
-	Url string
+	Url string;
+	BindId int32;
+	GroupId int32;
 }
 
-func NewRequestHolder(request *http.Request, url string) RequestHolder {
+func NewRequestHolder(request *http.Request) RequestHolder {
 	return RequestHolder{
 		Request: request,
-		Url: url,
 	}
 }
 

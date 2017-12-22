@@ -13,6 +13,8 @@ const (
 )
 
 type ApiBindingInfo struct {
+	BindId int32;
+	GroupId int32;
 	Url string;
 	WarningLevel int32;
 	LogLevel int32;

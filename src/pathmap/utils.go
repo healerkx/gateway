@@ -9,10 +9,11 @@ func PrintRoutesNode(pathNode *PathNode, level int) {
 	currentNode := pathNode
 	for key, node := range currentNode.pathNodeMap {
 		abi := node.FindApiBindingInfo()
+		indent := strings.Repeat("_", level * 4)
 		if abi != nil {
-			fmt.Printf("|_%s[%s(%d)] %q %d\n", strings.Repeat("_", level * 4), key, node.bindId, abi.Url, abi.Status)
+			fmt.Printf("|_%s[%s(%d)] %q %d\n", indent, key, node.bindId, abi.Url, abi.Status)
 		} else {
-			fmt.Printf("|_%s[%s]\n", strings.Repeat("_", level * 4), key)
+			fmt.Printf("|_%s[%s]\n", indent, key)
 		}
 		
 		PrintRoutesNode(node, level + 1)

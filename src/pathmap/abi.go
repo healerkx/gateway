@@ -14,18 +14,23 @@ import (
  * Start handle the middlewares
  */
 func (this *ApiBindingInfo) Handle(req *http.Request, url string) {
-	rh := middleware.NewRequestHolder(req, url)
+	rh := middleware.NewRequestHolder(req)
+	rh.Url = url
+	rh.BindId = this.BindId
+	rh.GroupId = this.GroupId
 	this.HeadMiddleware.Handle(&rh)
 }
 
-func NewApiBindingInfo(url string) *ApiBindingInfo {
+func NewApiBindingInfo(bindId, groupId int32, url string) *ApiBindingInfo {
 	headMiddleware := middleware.NewHeadMiddleware()
 
-	return &ApiBindingInfo{
-		Url: url, 
-		WarningLevel: 0, 
-		LogLevel: 0, 
-		CheckConfig: 0, 
+	return &ApiBindingInfo {
+		BindId: bindId,
+		GroupId: groupId,
+		Url: url,
+		WarningLevel: 0,
+		LogLevel: 0,
+		CheckConfig: 0,
 		Status: AbiStatusEnabled,
 		HeadMiddleware: headMiddleware,
 	}
@@ -35,8 +40,8 @@ func (this *PathNode) FindApiBindingInfo() *ApiBindingInfo {
 	return gApiBindingInfoMap[this.bindId]
 }
 
-func NewUrlPathNode(url string, pathParamName string, bindId int32) *PathNode {
-	abi := NewApiBindingInfo(url)
+func NewUrlPathNode(url string, pathParamName string, bindId, groupId int32) *PathNode {
+	abi := NewApiBindingInfo(bindId, groupId, url)
 	gApiBindingInfoMap[bindId] = abi
 	return &PathNode {
 		pathNodeMap: make(PathNodeMap),
@@ -118,6 +123,7 @@ func addRoute(method string, apiBinding map[string]string) {
 	path := apiBinding["gateway_api"]
 	url := apiBinding["service_api"]
 	bindId, _ := strconv.Atoi(apiBinding["bind_id"])
+	groupId, _ := strconv.Atoi(apiBinding["group_id"])
 	parts := strings.Split(strings.Trim(path, "/ "), "/")
 	
 	count := len(parts)
@@ -138,7 +144,7 @@ func addRoute(method string, apiBinding map[string]string) {
 		} else {
 			var newNode *PathNode
 			if index + 1 == count {
-				newNode = NewUrlPathNode(url, pathParam, int32(bindId))
+				newNode = NewUrlPathNode(url, pathParam, int32(bindId), int32(groupId))
 			} else {
 				newNode = NewPathNode()
 			}
