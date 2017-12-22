@@ -43,14 +43,15 @@ func (this *LogFile) WriteContent(groupId int32, content string) {
 	if this.file == nil {
 		fileName := getFileName(groupId, now)
 		var err error
-		if this.file, err = os.OpenFile(fileName, os.O_CREATE | os.O_APPEND, 0666); err == nil {
+		if this.file, err = os.OpenFile(fileName, os.O_CREATE | os.O_APPEND | os.O_WRONLY, 0666); err == nil {
 			this.fileName = fileName
-			this.file.WriteString(content + "\n")
-			this.file.Sync()
 		}
 	}
 
-
+	if this.file != nil {
+		this.file.WriteString(content + "\n")
+		this.file.Sync()	
+	}
 }
 
 
